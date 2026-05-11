@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Content Repurposer - AI Social Post Generator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a2e; line-height: 1.6; background: #f8fafc; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+        section { padding: 60px 0; }
+
+        .hero { background: linear-gradient(135deg, #0077B6 0%, #0096c7 100%); color: white; text-align: center; padding: 80px 24px; }
+        .hero h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 16px; }
+        .hero p { font-size: 1.2rem; opacity: 0.95; max-width: 600px; margin: 0 auto 32px; }
+
+        .tool-section { background: white; border-radius: 16px; padding: 40px; max-width: 900px; margin: -40px auto 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        .input-area { width: 100%; min-height: 200px; padding: 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; resize: vertical; margin-bottom: 20px; }
+        .btn { display: inline-block; padding: 14px 32px; border-radius: 50px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.3s; }
+        .btn-primary { background: #0077B6; color: white; }
+        .btn-primary:hover { background: #005f8a; }
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+        .results { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
+        .card { background: #f1f5f9; padding: 16px; border-radius: 12px; position: relative; }
+        .card .platform { font-weight: 600; color: #0077B6; margin-bottom: 8px; }
+        .card .text { font-size: 0.95rem; margin-bottom: 12px; }
+        .card .copy-btn { background: white; border: 1px solid #cbd5e1; padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+        .copy-btn:hover { background: #e2e8f0; }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1a2e; color: white; padding: 12px 24px; border-radius: 8px; opacity: 0; pointer-events: none; transition: opacity 0.3s; z-index: 1000; }
+        .toast.show { opacity: 1; }
+
+        footer { background: #1a1a2e; color: white; text-align: center; padding: 24px; font-size: 0.9rem; }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 1.8rem; }
+            .tool-section { margin: -40px 16px 40px; padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+    <section class="hero">
+        <div class="container">
+            <h1>📝 Content Repurposer</h1>
+            <p>Turn one long post into 10 high-performing social posts — in seconds.</p>
+        </div>
+    </section>
+
+    <!-- Tool Section -->
+    <section>
+        <div class="tool-section">
+            <h2 style="margin-bottom:16px;">✍️ Paste Your Content</h2>
+            <textarea class="input-area" id="inputText" placeholder="Paste your blog post, newsletter, or article here..."></textarea>
+            <button class="btn btn-primary" id="generateBtn" onclick="generatePosts()">Generate 10 Posts 🤖</button>
+            <div id="results" class="results"></div>
+        </div>
+    </section>
+
+    <footer>
+        <p>&copy; 2025 Content Repurposer. All rights reserved.</p>
+    </footer>
+
+    <!-- Toast notification -->
+    <div id="toast" class="toast">Copied!</div>
+
+    <script>
+        // ==========================================
+        // 配置：填入你的 API Key 和 Base URL
+        // ==========================================
+        const API_KEY = 'sk-ssQiZ6LnOK9wAmcR391dA9D0F8Ae4eBcB854F967F91dA3Fc';
+        const API_BASE = 'https://api.apiyi.com/v1';
+
+        async function generatePosts() {
+            const input = document.getElementById('inputText').value.trim();
+            if (!input) {
+                alert('Please paste some content first.');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            const prompt = `You are a professional social media manager. Take the following long-form content and rewrite it into 10 distinct social media posts. Each post should be optimized for a different platform or style. Output exactly 10 posts, numbered 1 to 10. For each post, specify a suggested platform (e.g., X/Twitter, LinkedIn, Instagram, Facebook, Threads) and then the post text. Make them engaging, with appropriate tone, emojis, and hashtags. Here is the content:\n\n${input}`;
+
+            try {
+                const response = await fetch(`${API_BASE}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-3.5-turbo',
+                        messages: [{ role: 'user', content: prompt }],
+                        temperature: 0.8,
+                        max_tokens: 2000
+                    })
+                });
+
+                const data = await response.json();
+                const reply = data.choices?.[0]?.message?.content || 'No response from AI.';
+                displayResults(reply);
+            } catch (error) {
+                alert('Error: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate 10 Posts 🤖';
+            }
+        }
+
+        function displayResults(text) {
+            const container = document.getElementById('results');
+            const posts = text.split(/\n(?=\d+\.\s)/); // split by "1. ", "2. " etc.
+            let html = '';
+
+            posts.forEach((post, index) => {
+                if (!post.trim()) return;
+                // extract platform if mentioned
+                const match = post.match(/\(([^)]+)\)/);
+                const platform = match ? match[1] : 'Social Media';
+                const cleanText = post.replace(/^\d+\.\s*/, '').replace(/\([^)]+\)\s*/, '');
+                html += `
+                    <div class="card">
+                        <div class="platform">${platform} #${index+1}</div>
+                        <div class="text">${escapeHTML(cleanText)}</div>
+                        <button class="copy-btn" onclick="copyToClipboard(this, '${escapeHTML(cleanText)}')">📋 Copy</button>
+                    </div>`;
+            });
+
+            container.innerHTML = html || '<p>No posts generated. Try again.</p>';
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function copyToClipboard(btn, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            });
+        }
+    </script>
+</body>
+</html>
