@@ -95,8 +95,7 @@
 
     <script>
         // ========== 配置区域：请替换为你的真实 Key ==========
-        const API_KEY = 'sk-6ed14f028c8847bf9258c56a854e9120';   // 在这里粘贴你的百炼 API Key
-        const BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+        const API_PROXY_URL = '/.netlify/functions/ai-proxy';
         const MODEL_NAME = 'qwen-plus';           // 推荐模型，也可换成 qwen-turbo 或 deepseek-r1
         // =====================================================
 
@@ -138,11 +137,10 @@
             statusDiv.textContent = '';
 
             try {
-                const response = await fetch(`${BASE_URL}/chat/completions`, {
+                const response = await fetch(API_PROXY_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${API_KEY}`
                     },
                     body: JSON.stringify({
                         model: MODEL_NAME,
