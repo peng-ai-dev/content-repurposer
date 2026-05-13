@@ -4,24 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Content Repurposer - Turn One Post into 10 Social Posts</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: system-ui, -apple-system, sans-serif; color: #1a1a2e; line-height: 1.6; background: #f8fafc; }
         .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
-
-        /* 导航栏 */
-        .navbar { background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 12px 0; position: sticky; top: 0; z-index: 100; }
-        .navbar .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-        .logo { font-weight: 800; font-size: 1.3rem; color: #0077B6; text-decoration: none; }
-        .nav-btns { display: flex; align-items: center; gap: 12px; }
-        .btn-sm { padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; text-decoration: none; transition: all 0.2s; }
-        .btn-outline { background: transparent; border: 1px solid #0077B6; color: #0077B6; }
-        .btn-outline:hover { background: #e0f0ff; }
-        .btn-solid { background: #0077B6; color: white; }
-        .btn-solid:hover { background: #005f8a; }
-        .user-info { font-size: 0.9rem; display: flex; align-items: center; gap: 12px; }
-        .badge { background: #e0f0ff; color: #0077B6; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
 
         /* Hero */
         .hero { background: linear-gradient(135deg, #0077B6 0%, #0096c7 100%); color: white; text-align: center; padding: 60px 24px; }
@@ -35,7 +21,7 @@
         .input-area, .output-area { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
         textarea { width: 100%; height: 250px; border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; font-size: 1rem; resize: vertical; font-family: inherit; }
         textarea:focus { outline: none; border-color: #0077B6; }
-        .btn { display: inline-block; padding: 12px 32px; border-radius: 50px; font-size: 1rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.3s; }
+        .btn { display: inline-block; padding: 12px 32px; border-radius: 50px; font-size: 1rem; font-weight: 600; text-decoration: none; cursor: pointer; border: none; transition: all 0.3s; }
         .btn-primary { background: #0077B6; color: white; }
         .btn-primary:hover { background: #005f8a; transform: translateY(-2px); }
         .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; transform: none; }
@@ -48,38 +34,25 @@
         .status { text-align: center; margin-top: 16px; font-size: 0.9rem; color: #64748b; }
         .error { color: #dc2626; }
 
-        /* 弹窗 */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 200; justify-content: center; align-items: center; }
-        .modal-overlay.active { display: flex; }
-        .modal { background: white; border-radius: 16px; padding: 32px; max-width: 400px; width: 90%; position: relative; }
-        .modal h2 { margin-bottom: 20px; }
-        .modal input { width: 100%; padding: 10px; margin-bottom: 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; }
-        .modal input:focus { outline: none; border-color: #0077B6; }
-        .modal .btn { width: 100%; margin-top: 8px; }
-        .modal .switch { margin-top: 12px; text-align: center; font-size: 0.9rem; }
-        .modal .switch a { color: #0077B6; cursor: pointer; text-decoration: underline; }
-        .close-modal { position: absolute; top: 12px; right: 16px; background: none; border: none; font-size: 1.4rem; cursor: pointer; }
-
-        /* 下拉菜单 */
-        .dropdown { position: relative; display: inline-block; }
-        .dropdown-trigger { cursor: pointer; display: flex; align-items: center; gap: 4px; user-select: none; }
-        .dropdown-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 8px; background: white; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); min-width: 180px; z-index: 300; }
-        .dropdown-menu.active { display: block; }
-        .dropdown-menu a { display: block; padding: 10px 16px; text-decoration: none; color: #1a1a2e; font-size: 0.9rem; }
-        .dropdown-menu a:hover { background: #f1f5f9; }
+        /* Features */
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; margin: 40px 0; }
+        .feature-card { text-align: center; padding: 24px; }
+        .feature-card .icon { font-size: 2rem; margin-bottom: 8px; }
 
         footer { background: #1a1a2e; color: white; text-align: center; padding: 20px; margin-top: 40px; font-size: 0.9rem; }
         footer a { color: #ffffff; text-decoration: underline; }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
     <!-- 导航栏 -->
-    <nav class="navbar">
-        <div class="container">
-            <a href="/" class="logo">📝 Content Repurposer</a>
-            <div class="nav-btns" id="navArea">
-                <!-- JS动态渲染 -->
+    <nav style="background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 12px 0; position: sticky; top: 0; z-index: 100;">
+        <div class="container" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <a href="/" style="font-weight: 800; font-size: 1.3rem; color: #0077B6; text-decoration: none;">📝 Content Repurposer</a>
+            <div id="navArea" style="display: flex; align-items: center; gap: 12px;">
+                <button onclick="openAuth('signin')" style="padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid #0077B6; color: #0077B6; background: transparent;">Sign In</button>
+                <button onclick="openAuth('signup')" style="padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; background: #0077B6; color: white;">Sign Up</button>
             </div>
         </div>
     </nav>
@@ -87,7 +60,7 @@
     <!-- Hero -->
     <section class="hero">
         <div class="container">
-            <h1>Content Repurposer</h1>
+            <h1>📝 Content Repurposer</h1>
             <p>Turn one long post into 10 high-performing social posts — in seconds.</p>
         </div>
     </section>
@@ -114,38 +87,47 @@
         </div>
     </section>
 
+    <!-- Features -->
+    <section>
+        <div class="container">
+            <div class="features">
+                <div class="feature-card"><div class="icon">🌐</div><h3>Multi-Platform</h3><p>X, LinkedIn, Instagram</p></div>
+                <div class="feature-card"><div class="icon">🎭</div><h3>Tone Control</h3><p>Professional, casual, witty</p></div>
+                <div class="feature-card"><div class="icon">📋</div><h3>One-Click Copy</h3><p>Ready to publish</p></div>
+            </div>
+        </div>
+    </section>
+
     <footer>
         <p>&copy; 2025 Content Repurposer. All rights reserved.</p>
         <p style="margin-top:8px;">📧 Contact: <a href="mailto:cpplay1@outlook.com">cpplay1@outlook.com</a></p>
     </footer>
 
-    <!-- 登录/注册弹窗 -->
-    <div class="modal-overlay" id="authModal">
-        <div class="modal">
-            <button class="close-modal" onclick="closeAuthModal()">&times;</button>
+    <!-- 登录注册弹窗 -->
+    <div id="authModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:center;">
+        <div style="background:white; border-radius:16px; padding:32px; max-width:400px; width:90%; position:relative;">
+            <button onclick="closeAuthModal()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
             <h2 id="authTitle">Sign In</h2>
-            <input type="email" id="authEmail" placeholder="Email">
-            <input type="password" id="authPassword" placeholder="Password">
-            <button class="btn btn-primary" id="authSubmitBtn" onclick="handleAuth()">Sign In</button>
-            <div class="switch" id="authSwitch">
-                <span>Don't have an account? <a onclick="toggleAuthMode()">Sign Up</a></span>
-            </div>
-            <div id="authMsg" style="margin-top:10px;font-size:0.85rem;"></div>
+            <input type="email" id="authEmail" placeholder="Email" style="width:100%; padding:10px; margin-bottom:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
+            <input type="password" id="authPassword" placeholder="Password" style="width:100%; padding:10px; margin-bottom:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
+            <button id="authSubmitBtn" onclick="handleAuth()" style="width:100%; padding:12px; border-radius:50px; font-size:1rem; font-weight:600; cursor:pointer; border:none; background:#0077B6; color:white;">Sign In</button>
+            <div id="authSwitch" style="margin-top:12px; text-align:center; font-size:0.9rem;"></div>
+            <div id="authMsg" style="margin-top:10px; font-size:0.85rem;"></div>
         </div>
     </div>
 
     <!-- 游客拦截弹窗 -->
-    <div class="modal-overlay" id="guestModal">
-        <div class="modal" style="text-align:center;">
+    <div id="guestModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:center;">
+        <div style="background:white; border-radius:16px; padding:32px; max-width:400px; width:90%; text-align:center;">
             <h2>🚀 Try It Free!</h2>
             <p style="margin:16px 0;">Sign up to get <strong>1 free generation</strong> per day.</p>
-            <button class="btn btn-primary" onclick="closeGuestAndOpenAuth()">Sign Up Now</button>
-            <p style="margin-top:12px;font-size:0.9rem;">Already have an account? <a style="color:#0077B6;cursor:pointer;text-decoration:underline;" onclick="closeGuestAndOpenAuth('signin')">Sign In</a></p>
+            <button onclick="document.getElementById('guestModal').style.display='none';openAuth('signup');" style="width:100%; padding:12px; border-radius:50px; font-size:1rem; font-weight:600; cursor:pointer; border:none; background:#0077B6; color:white;">Sign Up Now</button>
+            <p style="margin-top:12px; font-size:0.9rem;">Already have an account? <a onclick="document.getElementById('guestModal').style.display='none';openAuth('signin');" style="color:#0077B6; cursor:pointer; text-decoration:underline;">Sign In</a></p>
         </div>
     </div>
 
     <script>
-        // ==================== 初始化 Supabase ====================
+        // Supabase 初始化
         const SUPABASE_URL = 'https://psojiajcebrzjhaenzkq.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_hRjET0_FQusAIqZosQne4w_Et8Fhh9u';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -153,135 +135,13 @@
         const API_PROXY_URL = '/.netlify/functions/ai-proxy';
         const MODEL_NAME = 'qwen-plus';
         const MAX_CHARS = 25000;
+        let authMode = 'signin';
 
-        let authMode = 'signin'; // signin | signup
-
-        // ==================== UI 元素 ====================
-        const navArea = document.getElementById('navArea');
-        const generateBtn = document.getElementById('generateBtn');
         const userInput = document.getElementById('userInput');
+        const generateBtn = document.getElementById('generateBtn');
         const outputContainer = document.getElementById('outputContainer');
         const statusDiv = document.getElementById('status');
-        const authModal = document.getElementById('authModal');
-        const guestModal = document.getElementById('guestModal');
-        const authTitle = document.getElementById('authTitle');
-        const authSubmitBtn = document.getElementById('authSubmitBtn');
-        const authSwitch = document.getElementById('authSwitch');
-        const authMsg = document.getElementById('authMsg');
-        const authEmail = document.getElementById('authEmail');
-        const authPassword = document.getElementById('authPassword');
 
-        // ==================== 导航栏渲染 ====================
-        async function renderNav() {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const user = session.user;
-                // 获取剩余额度
-                const { data: profile } = await supabase.from('profiles').select('today_credits,is_paid,paid_until').eq('user_id', user.id).single();
-                let creditsText = '';
-                if (profile) {
-                    if (profile.is_paid && profile.paid_until && new Date(profile.paid_until) > new Date()) {
-                        creditsText = 'Pro (unlimited)';
-                    } else {
-                        creditsText = `${profile.today_credits || 0} free left`;
-                    }
-                }
-                navArea.innerHTML = `
-                    <div class="user-info">
-                        <span>${user.email}</span>
-                        <span class="badge">${creditsText}</span>
-                        <div class="dropdown">
-                            <span class="dropdown-trigger" onclick="toggleDropdown()">▾</span>
-                            <div class="dropdown-menu" id="dropdownMenu">
-                                <a href="/dashboard.html">📊 Dashboard</a>
-                                <a onclick="logout()">🚪 Logout</a>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else {
-                navArea.innerHTML = `
-                    <button class="btn-sm btn-outline" onclick="openAuth('signin')">Sign In</button>
-                    <button class="btn-sm btn-solid" onclick="openAuth('signup')">Sign Up</button>
-                `;
-            }
-        }
-
-        function toggleDropdown() {
-            document.getElementById('dropdownMenu').classList.toggle('active');
-        }
-
-        // 点击其他地方关闭下拉
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.dropdown')) {
-                document.getElementById('dropdownMenu')?.classList.remove('active');
-            }
-        });
-
-        // ==================== 认证逻辑 ====================
-        function openAuth(mode) {
-            authMode = mode;
-            if (mode === 'signin') {
-                authTitle.textContent = 'Sign In';
-                authSubmitBtn.textContent = 'Sign In';
-                authSwitch.innerHTML = `<span>Don't have an account? <a onclick="toggleAuthMode()">Sign Up</a></span>`;
-            } else {
-                authTitle.textContent = 'Sign Up';
-                authSubmitBtn.textContent = 'Sign Up';
-                authSwitch.innerHTML = `<span>Already have an account? <a onclick="toggleAuthMode()">Sign In</a></span>`;
-            }
-            authMsg.textContent = '';
-            authEmail.value = '';
-            authPassword.value = '';
-            authModal.classList.add('active');
-        }
-
-        function closeAuthModal() {
-            authModal.classList.remove('active');
-        }
-
-        function toggleAuthMode() {
-            authMode = authMode === 'signin' ? 'signup' : 'signin';
-            openAuth(authMode);
-        }
-
-        function closeGuestAndOpenAuth(mode = 'signup') {
-            guestModal.classList.remove('active');
-            openAuth(mode);
-        }
-
-        async function handleAuth() {
-            const email = authEmail.value.trim();
-            const password = authPassword.value.trim();
-            if (!email || !password) {
-                authMsg.innerHTML = '<span style="color:#dc2626;">Please fill all fields.</span>';
-                return;
-            }
-            authMsg.innerHTML = 'Loading...';
-            if (authMode === 'signup') {
-                const { data, error } = await supabase.auth.signUp({ email, password });
-                if (error) {
-                    authMsg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
-                } else {
-                    authMsg.innerHTML = '<span style="color:#16a34a;">Registration successful! Please check your email to confirm, then sign in.</span>';
-                }
-            } else {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) {
-                    authMsg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
-                } else {
-                    authModal.classList.remove('active');
-                    renderNav();
-                }
-            }
-        }
-
-        async function logout() {
-            await supabase.auth.signOut();
-            renderNav();
-        }
-
-        // ==================== 生成逻辑 ====================
         userInput.addEventListener('input', () => {
             if (userInput.value.length > MAX_CHARS) {
                 userInput.value = userInput.value.slice(0, MAX_CHARS);
@@ -301,9 +161,10 @@
                 return;
             }
 
+            // 游客拦截
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
-                guestModal.classList.add('active');
+                document.getElementById('guestModal').style.display = 'flex';
                 return;
             }
 
@@ -349,7 +210,7 @@
                 displayPosts(aiContent);
                 statusDiv.textContent = '✅ Posts generated successfully!';
                 statusDiv.className = 'status';
-                renderNav(); // 刷新额度显示
+                updateNav(); // 刷新额度显示
             } catch (error) {
                 console.error(error);
                 statusDiv.textContent = `❌ Error: ${error.message}`;
@@ -397,8 +258,86 @@
             return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // ==================== 启动 ====================
-        renderNav();
+        // ==================== 认证相关函数 ====================
+        function openAuth(mode) {
+            authMode = mode;
+            document.getElementById('authTitle').textContent = mode === 'signin' ? 'Sign In' : 'Sign Up';
+            document.getElementById('authSubmitBtn').textContent = mode === 'signin' ? 'Sign In' : 'Sign Up';
+            document.getElementById('authSwitch').innerHTML = mode === 'signin'
+                ? `<span>Don't have an account? <a onclick="toggleAuthMode()" style="color:#0077B6;cursor:pointer;text-decoration:underline;">Sign Up</a></span>`
+                : `<span>Already have an account? <a onclick="toggleAuthMode()" style="color:#0077B6;cursor:pointer;text-decoration:underline;">Sign In</a></span>`;
+            document.getElementById('authMsg').textContent = '';
+            document.getElementById('authEmail').value = '';
+            document.getElementById('authPassword').value = '';
+            document.getElementById('authModal').style.display = 'flex';
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').style.display = 'none';
+        }
+
+        function toggleAuthMode() {
+            authMode = authMode === 'signin' ? 'signup' : 'signin';
+            openAuth(authMode);
+        }
+
+        async function handleAuth() {
+            const email = document.getElementById('authEmail').value.trim();
+            const password = document.getElementById('authPassword').value.trim();
+            const msg = document.getElementById('authMsg');
+            if (!email || !password) {
+                msg.innerHTML = '<span style="color:#dc2626;">Please fill all fields.</span>';
+                return;
+            }
+            msg.innerHTML = 'Loading...';
+            if (authMode === 'signup') {
+                const { error } = await supabase.auth.signUp({ email, password });
+                if (error) msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
+                else msg.innerHTML = '<span style="color:#16a34a;">Registration successful! Check your email to confirm, then sign in.</span>';
+            } else {
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
+                else {
+                    closeAuthModal();
+                    updateNav();
+                }
+            }
+        }
+
+        async function updateNav() {
+            const { data: { session } } = await supabase.auth.getSession();
+            const navArea = document.getElementById('navArea');
+            if (session) {
+                const user = session.user;
+                const { data: profile } = await supabase.from('profiles').select('today_credits,is_paid,paid_until').eq('user_id', user.id).single();
+                let creditsText = '';
+                if (profile) {
+                    if (profile.is_paid && profile.paid_until && new Date(profile.paid_until) > new Date()) {
+                        creditsText = 'Pro (unlimited)';
+                    } else {
+                        creditsText = `${profile.today_credits || 0} free left`;
+                    }
+                }
+                navArea.innerHTML = `
+                    <span style="font-size:0.9rem;">${user.email}</span>
+                    <span style="background:#e0f0ff; color:#0077B6; padding:4px 10px; border-radius:20px; font-size:0.8rem; font-weight:600;">${creditsText}</span>
+                    <a href="/dashboard.html" style="font-size:0.85rem; color:#0077B6; text-decoration:underline;">Dashboard</a>
+                    <button onclick="logout()" style="padding:6px 12px; border-radius:6px; font-size:0.8rem; cursor:pointer; border:1px solid #dc2626; color:#dc2626; background:transparent;">Logout</button>
+                `;
+            } else {
+                navArea.innerHTML = `
+                    <button onclick="openAuth('signin')" style="padding:8px 16px; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; border:1px solid #0077B6; color:#0077B6; background:transparent;">Sign In</button>
+                    <button onclick="openAuth('signup')" style="padding:8px 16px; border-radius:8px; font-size:0.85rem; font-weight:600; cursor:pointer; border:none; background:#0077B6; color:white;">Sign Up</button>
+                `;
+            }
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            updateNav();
+        }
+
+        updateNav();
     </script>
 </body>
 </html>
