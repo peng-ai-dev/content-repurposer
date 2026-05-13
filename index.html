@@ -127,10 +127,10 @@
     </div>
 
     <script>
-        // Supabase 初始化
+        // Supabase 初始化 - 使用独立的变量名避免全局冲突
         const SUPABASE_URL = 'https://psojiajcebrzjhaenzkq.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_hRjET0_FQusAIqZosQne4w_Et8Fhh9u';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const API_PROXY_URL = '/.netlify/functions/ai-proxy';
         const MODEL_NAME = 'qwen-plus';
@@ -162,7 +162,7 @@
             }
 
             // 游客拦截
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) {
                 document.getElementById('guestModal').style.display = 'flex';
                 return;
@@ -291,11 +291,11 @@
             }
             msg.innerHTML = 'Loading...';
             if (authMode === 'signup') {
-                const { error } = await supabase.auth.signUp({ email, password });
+                const { error } = await supabaseClient.auth.signUp({ email, password });
                 if (error) msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
                 else msg.innerHTML = '<span style="color:#16a34a;">Registration successful! Check your email to confirm, then sign in.</span>';
             } else {
-                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
                 if (error) msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
                 else {
                     closeAuthModal();
@@ -305,18 +305,23 @@
         }
 
         async function updateNav() {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             const navArea = document.getElementById('navArea');
             if (session) {
                 const user = session.user;
-                const { data: profile } = await supabase.from('profiles').select('today_credits,is_paid,paid_until').eq('user_id', user.id).single();
                 let creditsText = '';
-                if (profile) {
-                    if (profile.is_paid && profile.paid_until && new Date(profile.paid_until) > new Date()) {
-                        creditsText = 'Pro (unlimited)';
-                    } else {
-                        creditsText = `${profile.today_credits || 0} free left`;
+                try {
+                    const { data: profile } = await supabaseClient.from('profiles').select('today_credits,is_paid,paid_until').eq('user_id', user.id).single();
+                    if (profile) {
+                        if (profile.is_paid && profile.paid_until && new Date(profile.paid_until) > new Date()) {
+                            creditsText = 'Pro (unlimited)';
+                        } else {
+                            creditsText = `${profile.today_credits || 0} free left`;
+                        }
                     }
+                } catch (e) {
+                    console.warn('Profile table not ready yet', e);
+                    creditsText = 'Free account';
                 }
                 navArea.innerHTML = `
                     <span style="font-size:0.9rem;">${user.email}</span>
@@ -333,10 +338,19 @@
         }
 
         async function logout() {
-            await supabase.auth.signOut();
+            await supabaseClient.auth.signOut();
             updateNav();
         }
 
+        // 显式挂载全局函数，确保 HTML onclick 可以调用
+        window.openAuth = openAuth;
+        window.closeAuthModal = closeAuthModal;
+        window.toggleAuthMode = toggleAuthMode;
+        window.handleAuth = handleAuth;
+        window.logout = logout;
+        window.updateNav = updateNav;
+
+        // 初始化
         updateNav();
     </script>
 </body>
