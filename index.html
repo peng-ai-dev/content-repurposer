@@ -41,6 +41,11 @@
 
         footer { background: #1a1a2e; color: white; text-align: center; padding: 20px; margin-top: 40px; font-size: 0.9rem; }
         footer a { color: #ffffff; text-decoration: underline; }
+
+        /* 密码可见性按钮 */
+        .password-wrapper { position: relative; width: 100%; }
+        .password-wrapper input { width: 100%; padding-right: 40px; }
+        .toggle-password { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 1.2rem; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -103,16 +108,40 @@
         <p style="margin-top:8px;">📧 Contact: <a href="mailto:cpplay1@outlook.com">cpplay1@outlook.com</a></p>
     </footer>
 
-    <!-- 登录注册弹窗 -->
+    <!-- 登录注册弹窗（含密码找回 + 真人验证） -->
     <div id="authModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:center;">
         <div style="background:white; border-radius:16px; padding:32px; max-width:400px; width:90%; position:relative;">
             <button onclick="closeAuthModal()" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.4rem; cursor:pointer;">&times;</button>
             <h2 id="authTitle">Sign In</h2>
-            <input type="email" id="authEmail" placeholder="Email" style="width:100%; padding:10px; margin-bottom:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
-            <input type="password" id="authPassword" placeholder="Password" style="width:100%; padding:10px; margin-bottom:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
-            <button id="authSubmitBtn" onclick="handleAuth()" style="width:100%; padding:12px; border-radius:50px; font-size:1rem; font-weight:600; cursor:pointer; border:none; background:#0077B6; color:white;">Sign In</button>
-            <div id="authSwitch" style="margin-top:12px; text-align:center; font-size:0.9rem;"></div>
-            <div id="authMsg" style="margin-top:10px; font-size:0.85rem;"></div>
+
+            <!-- 正常登录 / 注册表单 -->
+            <div id="authFormArea">
+                <input type="email" id="authEmail" placeholder="Email" style="width:100%; padding:10px; margin-bottom:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
+                <div class="password-wrapper" style="margin-bottom:12px;">
+                    <input type="password" id="authPassword" placeholder="Password" style="width:100%; padding:10px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
+                    <span onclick="togglePassword()" class="toggle-password">👁️</span>
+                </div>
+                <!-- 真人验证区域（仅注册时显示） -->
+                <div id="captchaArea" style="display:none; margin-bottom:12px; background:#f1f5f9; padding:10px; border-radius:8px; text-align:center;">
+                    <span id="captchaQuestion"></span>
+                    <input type="number" id="captchaAnswer" placeholder="Your answer" style="width:100%; margin-top:6px; padding:8px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
+                </div>
+                <button id="authSubmitBtn" onclick="handleAuth()" style="width:100%; padding:12px; border-radius:50px; font-size:1rem; font-weight:600; cursor:pointer; border:none; background:#0077B6; color:white;">Sign In</button>
+                <div id="authSwitch" style="margin-top:12px; text-align:center; font-size:0.9rem;"></div>
+                <div id="forgotPassword" style="margin-top:8px; text-align:center;">
+                    <a onclick="showForgotPassword()" style="color:#0077B6; cursor:pointer; text-decoration:underline; font-size:0.85rem;">Forgot Password?</a>
+                </div>
+                <div id="authMsg" style="margin-top:10px; font-size:0.85rem;"></div>
+            </div>
+
+            <!-- 忘记密码表单（默认隐藏） -->
+            <div id="forgotPasswordArea" style="display:none;">
+                <p style="margin-bottom:12px;">Enter your email to receive a password reset link.</p>
+                <input type="email" id="forgotEmail" placeholder="Email" style="width:100%; padding:10px; margin-bottom:12px; border:2px solid #e2e8f0; border-radius:8px; font-size:0.95rem;">
+                <button onclick="handleForgotPassword()" style="width:100%; padding:12px; border-radius:50px; font-size:1rem; font-weight:600; cursor:pointer; border:none; background:#0077B6; color:white;">Send Reset Link</button>
+                <p style="margin-top:12px; text-align:center;"><a onclick="hideForgotPassword()" style="color:#0077B6; cursor:pointer; text-decoration:underline;">Back to Sign In</a></p>
+                <div id="forgotMsg" style="margin-top:10px; font-size:0.85rem;"></div>
+            </div>
         </div>
     </div>
 
@@ -127,21 +156,23 @@
     </div>
 
     <script>
-        // Supabase 初始化 - 使用独立的变量名避免全局冲突
+        // Supabase 初始化
         const SUPABASE_URL = 'https://psojiajcebrzjhaenzkq.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_hRjET0_FQusAIqZosQne4w_Et8Fhh9u';
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const API_PROXY_URL = '/.netlify/functions/ai-proxy';
         const MODEL_NAME = 'qwen-plus';
         const MAX_CHARS = 25000;
-        let authMode = 'signin';
+        let authMode = 'signin';   // signin | signup
+        let captchaResult = null;  // 当前验证题目答案
 
         const userInput = document.getElementById('userInput');
         const generateBtn = document.getElementById('generateBtn');
         const outputContainer = document.getElementById('outputContainer');
         const statusDiv = document.getElementById('status');
 
+        // ==================== 输入字数限制 ====================
         userInput.addEventListener('input', () => {
             if (userInput.value.length > MAX_CHARS) {
                 userInput.value = userInput.value.slice(0, MAX_CHARS);
@@ -153,6 +184,7 @@
             }
         });
 
+        // ==================== 生成文章 ====================
         generateBtn.addEventListener('click', async () => {
             const inputText = userInput.value.trim();
             if (!inputText) {
@@ -162,7 +194,7 @@
             }
 
             // 游客拦截
-            const { data: { session } } = await supabaseClient.auth.getSession();
+            const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
                 document.getElementById('guestModal').style.display = 'flex';
                 return;
@@ -210,7 +242,7 @@
                 displayPosts(aiContent);
                 statusDiv.textContent = '✅ Posts generated successfully!';
                 statusDiv.className = 'status';
-                updateNav(); // 刷新额度显示
+                updateNav(); // 刷新额度
             } catch (error) {
                 console.error(error);
                 statusDiv.textContent = `❌ Error: ${error.message}`;
@@ -258,7 +290,7 @@
             return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // ==================== 认证相关函数 ====================
+        // ==================== 认证 UI ====================
         function openAuth(mode) {
             authMode = mode;
             document.getElementById('authTitle').textContent = mode === 'signin' ? 'Sign In' : 'Sign Up';
@@ -269,6 +301,19 @@
             document.getElementById('authMsg').textContent = '';
             document.getElementById('authEmail').value = '';
             document.getElementById('authPassword').value = '';
+            document.getElementById('captchaAnswer').value = '';
+            document.getElementById('authFormArea').style.display = 'block';
+            document.getElementById('forgotPasswordArea').style.display = 'none';
+            document.getElementById('forgotPassword').style.display = mode === 'signin' ? 'block' : 'none';
+
+            // 注册时显示验证码
+            const captchaArea = document.getElementById('captchaArea');
+            if (mode === 'signup') {
+                captchaArea.style.display = 'block';
+                generateCaptcha();
+            } else {
+                captchaArea.style.display = 'none';
+            }
             document.getElementById('authModal').style.display = 'flex';
         }
 
@@ -281,6 +326,21 @@
             openAuth(authMode);
         }
 
+        function togglePassword() {
+            const input = document.getElementById('authPassword');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        // 真人验证：随机加法
+        function generateCaptcha() {
+            const a = Math.floor(Math.random() * 10) + 1;
+            const b = Math.floor(Math.random() * 10) + 1;
+            captchaResult = a + b;
+            document.getElementById('captchaQuestion').textContent = `What is ${a} + ${b}?`;
+            document.getElementById('captchaAnswer').value = '';
+        }
+
+        // ==================== 注册 / 登录处理 ====================
         async function handleAuth() {
             const email = document.getElementById('authEmail').value.trim();
             const password = document.getElementById('authPassword').value.trim();
@@ -289,39 +349,96 @@
                 msg.innerHTML = '<span style="color:#dc2626;">Please fill all fields.</span>';
                 return;
             }
-            msg.innerHTML = 'Loading...';
+
+            // 注册时检查验证码
             if (authMode === 'signup') {
-                const { error } = await supabaseClient.auth.signUp({ email, password });
-                if (error) msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
-                else msg.innerHTML = '<span style="color:#16a34a;">Registration successful! Check your email to confirm, then sign in.</span>';
+                const userAnswer = parseInt(document.getElementById('captchaAnswer').value);
+                if (isNaN(userAnswer) || userAnswer !== captchaResult) {
+                    msg.innerHTML = '<span style="color:#dc2626;">Incorrect verification answer. Please try again.</span>';
+                    generateCaptcha();
+                    return;
+                }
+            }
+
+            msg.innerHTML = 'Loading...';
+
+            if (authMode === 'signup') {
+                // 注册并自动登录
+                const { data: signUpData, error: signUpError } = await supabase.auth.signUp({ email, password });
+                if (signUpError) {
+                    msg.innerHTML = `<span style="color:#dc2626;">${signUpError.message}</span>`;
+                    return;
+                }
+                // 如果邮箱确认已关闭，直接登录
+                if (signUpData.session) {
+                    closeAuthModal();
+                    updateNav();
+                } else {
+                    // 如果没有 session（极少情况），手动登录
+                    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+                    if (signInError) {
+                        msg.innerHTML = `<span style="color:#dc2626;">${signInError.message}</span>`;
+                    } else {
+                        closeAuthModal();
+                        updateNav();
+                    }
+                }
             } else {
-                const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-                if (error) msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
-                else {
+                // 登录
+                const { error } = await supabase.auth.signInWithPassword({ email, password });
+                if (error) {
+                    msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
+                } else {
                     closeAuthModal();
                     updateNav();
                 }
             }
         }
 
+        // ==================== 密码找回 ====================
+        function showForgotPassword() {
+            document.getElementById('authFormArea').style.display = 'none';
+            document.getElementById('forgotPasswordArea').style.display = 'block';
+            document.getElementById('forgotMsg').textContent = '';
+        }
+
+        function hideForgotPassword() {
+            document.getElementById('authFormArea').style.display = 'block';
+            document.getElementById('forgotPasswordArea').style.display = 'none';
+        }
+
+        async function handleForgotPassword() {
+            const email = document.getElementById('forgotEmail').value.trim();
+            const msg = document.getElementById('forgotMsg');
+            if (!email) {
+                msg.innerHTML = '<span style="color:#dc2626;">Please enter your email.</span>';
+                return;
+            }
+            msg.innerHTML = 'Sending...';
+            const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/'
+            });
+            if (error) {
+                msg.innerHTML = `<span style="color:#dc2626;">${error.message}</span>`;
+            } else {
+                msg.innerHTML = '<span style="color:#16a34a;">Reset link sent! Check your email and click the link.</span>';
+            }
+        }
+
+        // ==================== 导航栏更新 ====================
         async function updateNav() {
-            const { data: { session } } = await supabaseClient.auth.getSession();
+            const { data: { session } } = await supabase.auth.getSession();
             const navArea = document.getElementById('navArea');
             if (session) {
                 const user = session.user;
+                const { data: profile } = await supabase.from('profiles').select('today_credits,is_paid,paid_until').eq('user_id', user.id).single();
                 let creditsText = '';
-                try {
-                    const { data: profile } = await supabaseClient.from('profiles').select('today_credits,is_paid,paid_until').eq('user_id', user.id).single();
-                    if (profile) {
-                        if (profile.is_paid && profile.paid_until && new Date(profile.paid_until) > new Date()) {
-                            creditsText = 'Pro (unlimited)';
-                        } else {
-                            creditsText = `${profile.today_credits || 0} free left`;
-                        }
+                if (profile) {
+                    if (profile.is_paid && profile.paid_until && new Date(profile.paid_until) > new Date()) {
+                        creditsText = 'Pro (unlimited)';
+                    } else {
+                        creditsText = `${profile.today_credits || 0} free left`;
                     }
-                } catch (e) {
-                    console.warn('Profile table not ready yet', e);
-                    creditsText = 'Free account';
                 }
                 navArea.innerHTML = `
                     <span style="font-size:0.9rem;">${user.email}</span>
@@ -338,19 +455,11 @@
         }
 
         async function logout() {
-            await supabaseClient.auth.signOut();
+            await supabase.auth.signOut();
             updateNav();
         }
 
-        // 显式挂载全局函数，确保 HTML onclick 可以调用
-        window.openAuth = openAuth;
-        window.closeAuthModal = closeAuthModal;
-        window.toggleAuthMode = toggleAuthMode;
-        window.handleAuth = handleAuth;
-        window.logout = logout;
-        window.updateNav = updateNav;
-
-        // 初始化
+        // 启动
         updateNav();
     </script>
 </body>
