@@ -7,7 +7,8 @@ exports.handler = async (event) => {
   const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return { statusCode: 500, body: JSON.stringify({ error: 'Server config error' }) };
+    console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    return { statusCode: 500, body: JSON.stringify({ error: 'Server config error: missing Supabase credentials' }) };
   }
 
   try {
@@ -17,13 +18,25 @@ exports.handler = async (event) => {
     const userId = parseUserId(accessToken);
     if (!userId) return { statusCode: 401, body: JSON.stringify({ error: 'Invalid token' }) };
 
-    // 获取用户配置
-    const profileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}`, {
-      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, apikey: SUPABASE_SERVICE_ROLE_KEY }
+    // 获取用户配置 - 强制使用 service_role key 绕过 RLS
+    const profileRes = await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}&select=*`, {
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json'
+      }
     });
-    if (!profileRes.ok) return { statusCode: 500, body: JSON.stringify({ error: 'Failed to fetch profile' }) };
+
+    if (!profileRes.ok) {
+      const errText = await profileRes.text();
+      console.error(`Supabase profiles fetch failed: ${profileRes.status}`, errText);
+      return { statusCode: 500, body: JSON.stringify({ error: `Supabase error ${profileRes.status}: ${errText}` }) };
+    }
+
     const profiles = await profileRes.json();
-    if (!profiles.length) return { statusCode: 403, body: JSON.stringify({ error: 'Profile not found. Please re-register.' }) };
+    if (!Array.isArray(profiles) || profiles.length === 0) {
+      return { statusCode: 403, body: JSON.stringify({ error: 'Profile not found. Please re-register.' }) };
+    }
 
     const profile = profiles[0];
     const now = new Date();
@@ -43,21 +56,29 @@ exports.handler = async (event) => {
       }
     }
 
-    if (!canGenerate) return { statusCode: 402, body: JSON.stringify({ error: 'No credits' }) };
+    if (!canGenerate) {
+      return { statusCode: 402, body: JSON.stringify({ error: 'No credits. Please upgrade.' }) };
+    }
 
     // 更新额度
     await fetch(`${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${encodeURIComponent(userId)}`, {
       method: 'PATCH',
-      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, apikey: SUPABASE_SERVICE_ROLE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
       body: JSON.stringify({ today_credits: profile.today_credits, last_login_date: profile.last_login_date })
     });
 
     // 调用 AI
     const aiRes = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.BAILIAN_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.BAILIAN_API_KEY}` },
       body: JSON.stringify({ model: model || 'qwen-plus', messages, temperature: temperature || 0.8, max_tokens: max_tokens || 2000 })
     });
+
     const aiData = await aiRes.json();
     if (!aiRes.ok) throw new Error(aiData.error?.message || 'AI error');
 
@@ -66,12 +87,18 @@ exports.handler = async (event) => {
     // 记录历史
     await fetch(`${SUPABASE_URL}/rest/v1/generation_history`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`, apikey: SUPABASE_SERVICE_ROLE_KEY, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      headers: {
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        'apikey': SUPABASE_SERVICE_ROLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
       body: JSON.stringify({ user_id: userId, input_text: messages[messages.length - 1].content, output_text: outputText, created_at: new Date().toISOString() })
     });
 
     return { statusCode: 200, body: JSON.stringify(aiData) };
   } catch (error) {
+    console.error('Function error:', error.message);
     return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
   }
 };
