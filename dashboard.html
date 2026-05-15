@@ -52,12 +52,13 @@
     </div>
 
     <script>
+        // Supabase 初始化 - 使用 supabaseClient 避免冲突
         const SUPABASE_URL = 'https://psojiajcebrzjhaenzkq.supabase.co';
         const SUPABASE_ANON_KEY = 'sb_publishable_hRjET0_FQusAIqZosQne4w_Et8Fhh9u';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         async function loadDashboard() {
-            const { data: { session } } = await supabase.auth.getSession();
+            const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) {
                 window.location.href = '/';
                 return;
@@ -66,9 +67,16 @@
             const user = session.user;
 
             // 加载账户信息
-            const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', user.id).single();
+            const { data: profile, error: profileError } = await supabaseClient
+                .from('profiles')
+                .select('*')
+                .eq('user_id', user.id)
+                .single();
+
             const accountDiv = document.getElementById('accountInfo');
-            if (profile) {
+            if (profileError) {
+                accountDiv.innerHTML = `<p style="color:#dc2626;">Failed to load profile: ${profileError.message}</p>`;
+            } else if (profile) {
                 const isPro = profile.is_paid && profile.paid_until && new Date(profile.paid_until) > new Date();
                 accountDiv.innerHTML = `
                     <p><strong>Email:</strong> ${user.email}</p>
@@ -77,11 +85,11 @@
                     <p><strong>Today's Free Credits:</strong> ${profile.today_credits || 0}</p>
                 `;
             } else {
-                accountDiv.innerHTML = '<p>Unable to load profile.</p>';
+                accountDiv.innerHTML = '<p>No profile found. Please re-register.</p>';
             }
 
             // 加载历史记录
-            const { data: history, error } = await supabase
+            const { data: history, error: historyError } = await supabaseClient
                 .from('generation_history')
                 .select('*')
                 .eq('user_id', user.id)
@@ -89,8 +97,8 @@
                 .limit(50);
 
             const historyDiv = document.getElementById('historyList');
-            if (error) {
-                historyDiv.innerHTML = '<p style="color:#dc2626;">Failed to load history.</p>';
+            if (historyError) {
+                historyDiv.innerHTML = `<p style="color:#dc2626;">Failed to load history: ${historyError.message}</p>`;
                 return;
             }
             if (!history || history.length === 0) {
@@ -110,14 +118,14 @@
             `).join('');
         }
 
-        function copyOutput(id) {
+        window.copyOutput = function(id) {
             const el = document.getElementById('output-' + id);
             if (!el) return;
             const text = el.textContent;
             navigator.clipboard.writeText(text).then(() => {
                 alert('Output copied to clipboard!');
             });
-        }
+        };
 
         function escapeHtml(text) {
             return text?.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') || '';
